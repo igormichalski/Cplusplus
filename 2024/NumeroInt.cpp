@@ -23,7 +23,7 @@ public:
         this->numero = numero;
     }
     
-    int raiz() const{
+    float raiz() const{
         return sqrt(numero);
     }
     
