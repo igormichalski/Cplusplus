@@ -57,6 +57,7 @@ static int primitive = INACTIVE; // Current drawing primitive.
 static int pointCount = 0; // Number of  specified points.
 static int tempX, tempY; // Co-ordinates of clicked point.
 static int tempX2, tempY2; // Co-ordinates of clicked point.
+static int tempX3, tempY3;
 static int isGrid = 1; // Is there grid?
 
 static long font = (long)GLUT_BITMAP_8_BY_13; // Font selection.
@@ -283,7 +284,12 @@ class Bissetriz{
          StippleId = StippleIdVal;
          is3Points = is3PointsVal;
       }
+      Bissetriz(){};
       void drawBissetriz();
+      void setCoords(int x, int y){
+         x3 = x;
+         y3 = y;
+      }
 
    private:
       int x1, x2, x3;
@@ -354,6 +360,8 @@ vector<Bissetriz> bissetriz;
 
 vector<Bissetriz>::iterator bissetrizIterator;
 
+Bissetriz currentBissetriz;
+
 void drawBissetrizes(void)
 {
    bissetrizIterator = bissetriz.begin();
@@ -361,6 +369,9 @@ void drawBissetrizes(void)
       bissetrizIterator->drawBissetriz();
       bissetrizIterator++;
    }
+
+   currentBissetriz.drawBissetriz();
+   glFlush();
 }
 
 // Rectangle class.
@@ -568,6 +579,7 @@ void drawScene(void)
    glColor3f(0.0, 0.0, 0.0); 
 
    drawBissetrizes(); //Importante essa linha ser chamado antes do desenho da barra lateral
+   //currentBissetriz.drawBissetriz();
    
    drawPointSelectionBox();
    drawLineSelectionBox();
@@ -609,100 +621,24 @@ void pickPrimitive(int y)
    else primitive = POINT;
 }
 
-void primitiveBissetriz(int x, int y){
-   auto currentTime = high_resolution_clock::now();
-   auto duration = duration_cast<milliseconds>(currentTime - lastClickTime).count();
+// Mouse motion callback routine.
+void mouseMotion(int x, int y)
+{
+   // Update the location of the current point as the mouse moves with button pressed.
+   currentBissetriz.setCoords(x, height - y);
+   glutPostRedisplay();
+}
 
-   if (duration < 250) //Se for double click
-   {
-      bool found = false;
-      Line* clickedLine = nullptr;
 
-      for (Line& line : lines) {
-          if (isNearLine(line, x, y)) {
-            clickedLine = &line;
-            found = true;
-            break;
-          }
-      }
-  
-      if (!found) {
-          cout << "Nenhuma linha próxima encontrada." << endl;
-          pointCount = 0;
-          selectedLine1 = nullptr;
-          selectedLine2 = nullptr;
-      }
 
-      if(pointCount == 2 && found && selectedLine1 != clickedLine){ // para nao selecionar 2x a mesma linha
-         //Pegou segunda linha
-         selectedLine2 = clickedLine;
-         //cout << "Segunda linha selecionada!" << endl;
+void primitiveBissetriz(int x, int y, int button, int state){
 
-         // Calcular interseção (P2)
-         float x1 = selectedLine1->getX1(), y1 = selectedLine1->getY1(); 
-         float x2 = selectedLine1->getX2(), y2 = selectedLine1->getY2();
-         float x3 = selectedLine2->getX1(), y3 = selectedLine2->getY1();
-         float x4 = selectedLine2->getX2(), y4 = selectedLine2->getY2();
-
-         float denom = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4);
-
-         if (denom == 0) {
-             cout << "As linhas são paralelas ou coincidentes. Não há interseção." << endl;
-         } else {
-            float Px = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / denom;
-            float Py = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / denom;
-        
-            //Função lambda para verificar se dois pontos são iguais (com tolerância)
-            auto isSamePoint = [](float ax, float ay, float bx, float by, float tol = 1.0f) {
-                return hypot(ax - bx, ay - by) < tol;
-            };
-        
-            // P1 = ponto da primeira linha que não é P2
-            float p1x = isSamePoint(x1, y1, Px, Py) ? x2 : x1;
-            float p1y = isSamePoint(x1, y1, Px, Py) ? y2 : y1;
-        
-            // P3 = ponto da segunda linha que não é P2
-            float p3x = isSamePoint(x3, y3, Px, Py) ? x4 : x3;
-            float p3y = isSamePoint(x3, y3, Px, Py) ? y4 : y3;
-        
-            //cout << "P1: (" << p1x << ", " << p1y << ")" << endl;
-            //cout << "P2 (Interseção): (" << Px << ", " << Py << ")" << endl;
-            //cout << "P3: (" << p3x << ", " << p3y << ")" << endl;
-            bissetriz.push_back( Bissetriz(p1x, p1y, Px, Py, p3x, p3y, currentcolor, currentStipple, 0));
-         }
-         pointCount = 0;
-         selectedLine1 = nullptr;
-         selectedLine2 = nullptr;  
-      }else if(found){
-         //cout << "Primeira Linha" << random() << endl;
-         selectedLine1 = clickedLine;
-         //cout << "P1: (" << selectedLine1->getX1() << ", " << selectedLine1->getY1() << ") ";
-         //cout << "P2: (" << selectedLine1->getX2() << ", " << selectedLine1->getY2() << ")" << endl;      
-         //Pegou primeira linha
-      }
-   }
-   else //Clique normal segue lógica dos pontos
-   {
-      if (pointCount == 0){
-         tempX = x; tempY = y;
-         pointCount++;
-      }
-      else if (pointCount == 2) 
-      {
-         bissetriz.push_back( Bissetriz(tempX, tempY, tempX2, tempY2, x, y, currentcolor, currentStipple, 1));
-         pointCount = 0;
-      }
-      else {
-         tempX2 = x; tempY2 = y;
-         pointCount++;
-      }
-   }
-   lastClickTime = currentTime;
 }
 
 // The mouse callback routine.
 void mouseControl(int button, int state, int x, int y)
 {
+
    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
    {
       y = height - y; // Correct from mouse to OpenGL co-ordinates.
@@ -750,7 +686,97 @@ void mouseControl(int button, int state, int x, int y)
          else if (primitive == BISSETRIZ)
        {
          
-         primitiveBissetriz(x, y);
+         
+         auto currentTime = high_resolution_clock::now();
+         auto duration = duration_cast<milliseconds>(currentTime - lastClickTime).count();
+      
+         if (duration < 250) //Se for double click
+         {
+            bool found = false;
+            Line* clickedLine = nullptr;
+      
+            for (Line& line : lines) {
+                if (isNearLine(line, x, y)) {
+                  clickedLine = &line;
+                  found = true;
+                  break;
+                }
+            }
+        
+            if (!found) {
+                cout << "Nenhuma linha próxima encontrada." << endl;
+                pointCount = 0;
+                selectedLine1 = nullptr;
+                selectedLine2 = nullptr;
+            }
+      
+            if(pointCount == 2 && found && selectedLine1 != clickedLine){ // para nao selecionar 2x a mesma linha
+               //Pegou segunda linha
+               selectedLine2 = clickedLine;
+               //cout << "Segunda linha selecionada!" << endl;
+      
+               // Calcular interseção (P2)
+               float x1 = selectedLine1->getX1(), y1 = selectedLine1->getY1(); 
+               float x2 = selectedLine1->getX2(), y2 = selectedLine1->getY2();
+               float x3 = selectedLine2->getX1(), y3 = selectedLine2->getY1();
+               float x4 = selectedLine2->getX2(), y4 = selectedLine2->getY2();
+      
+               float denom = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4);
+      
+               if (denom == 0) {
+                   cout << "As linhas são paralelas ou coincidentes. Não há interseção." << endl;
+               } else {
+                  float Px = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / denom;
+                  float Py = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / denom;
+              
+                  //Função lambda para verificar se dois pontos são iguais (com tolerância)
+                  auto isSamePoint = [](float ax, float ay, float bx, float by, float tol = 1.0f) {
+                      return hypot(ax - bx, ay - by) < tol;
+                  };
+              
+                  // P1 = ponto da primeira linha que não é P2
+                  float p1x = isSamePoint(x1, y1, Px, Py) ? x2 : x1;
+                  float p1y = isSamePoint(x1, y1, Px, Py) ? y2 : y1;
+              
+                  // P3 = ponto da segunda linha que não é P2
+                  float p3x = isSamePoint(x3, y3, Px, Py) ? x4 : x3;
+                  float p3y = isSamePoint(x3, y3, Px, Py) ? y4 : y3;
+              
+                  //cout << "P1: (" << p1x << ", " << p1y << ")" << endl;
+                  //cout << "P2 (Interseção): (" << Px << ", " << Py << ")" << endl;
+                  //cout << "P3: (" << p3x << ", " << p3y << ")" << endl;
+                  bissetriz.push_back( Bissetriz(p1x, p1y, Px, Py, p3x, p3y, currentcolor, currentStipple, 0));
+                  pointCount = 0;
+               }
+               pointCount = 0;
+               selectedLine1 = nullptr;
+               selectedLine2 = nullptr;  
+            }else if(found){
+               //cout << "Primeira Linha" << random() << endl;
+               selectedLine1 = clickedLine;
+               //cout << "P1: (" << selectedLine1->getX1() << ", " << selectedLine1->getY1() << ") ";
+               //cout << "P2: (" << selectedLine1->getX2() << ", " << selectedLine1->getY2() << ")" << endl;      
+               //Pegou primeira linha
+            }
+         }
+         else //Clique normal segue lógica dos pontos
+         {
+            if (pointCount == 0){
+               tempX = x; tempY = y;
+               pointCount++;
+            }
+            else if (pointCount == 2) 
+            {
+               currentBissetriz = Bissetriz(tempX, tempY, tempX2, tempY2, x, y, currentcolor, currentStipple, 1);  
+               pointCount++;
+            
+            }
+            else {
+               tempX2 = x; tempY2 = y;   
+               pointCount++;
+            }
+         }
+         lastClickTime = currentTime;
        }
 
        else if (primitive == TEXT)
@@ -760,8 +786,12 @@ void mouseControl(int button, int state, int x, int y)
          getline(std::cin, textIn); 
          text.push_back( Text(x,y,textIn, currentcolor));
        }
-
 	  }
+   }
+   if (button == GLUT_LEFT_BUTTON && state == GLUT_UP && primitive == BISSETRIZ && pointCount > 2){
+      cout << "Teste "  << random() << endl; //PROBLEMA AQUI
+      bissetriz.push_back(currentBissetriz);
+      pointCount = 0;
    }
    glutPostRedisplay();
 }
@@ -811,6 +841,7 @@ void clearAll(void)
    rectangles.clear();
    bissetriz.clear();
    text.clear();
+   currentBissetriz = Bissetriz();
    primitive = INACTIVE;
    pointCount = 0;
 }
@@ -907,6 +938,8 @@ int main(int argc, char **argv)
    glutReshapeFunc(resize);  
    glutKeyboardFunc(keyInput);
    glutMouseFunc(mouseControl); 
+
+   glutMotionFunc(mouseMotion);
 
    makeMenu(); // Create menu.
 
